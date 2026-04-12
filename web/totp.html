@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSH Web - TOTP</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <h1>Two-Factor Authentication</h1>
+        <p class="totp-hint">Enter the 6-digit code from your authenticator app</p>
+        <form id="totp-form">
+            <div class="form-group">
+                <label for="totp-code">Verification Code</label>
+                <input type="text" id="totp-code" name="code" maxlength="6" pattern="[0-9]{6}" required inputmode="numeric" autocomplete="one-time-code">
+            </div>
+            <div id="error-msg" class="error hidden"></div>
+            <button type="submit">Verify</button>
+        </form>
+    </div>
+    <script src="/js/totp.js"></script>
+</body>
+</html>
