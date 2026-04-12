@@ -67,12 +67,12 @@
 | 项目 | 方案 |
 |------|------|
 | 密码存储 | bcrypt 哈希，不存明文 |
-| TOTP Secret | 首次启动时生成，显示二维码供用户绑定 |
-| Session | HttpOnly + Secure + SameSite=Lax Cookie，30 分钟过期，验证通过后重新生成 Session ID |
+| TOTP Secret | 首次启动时生成，显示二维码供用户绑定；TOTP 验证允许 ±1 时间窗口（30 秒/周期）的时钟偏差 |
+| Session | HttpOnly + SameSite=Lax Cookie，30 分钟过期，验证通过后重新生成 Session ID；启用 TLS 时添加 Secure 标志 |
 | WebSocket 认证 | 通过 Cookie 验证 Session，拒绝未认证连接；WebSocket 握手时校验 CSRF Token |
 | 暴力破解防护 | 登录失败 5 次锁定 15 分钟；TOTP 验证失败 5 次锁定 15 分钟 |
 | HTTPS | 支持配置 TLS 证书（可选），首次 TOTP 设置仅允许 localhost 访问 |
-| SSH 密码加密 | `default_host.password` 使用 AES-GCM 加密存储，密钥从 `password_hash` 派生 |
+| SSH 密码加密 | `default_host.password_encrypted` 使用 AES-GCM 加密存储，DEK（Data Encryption Key）为独立生成的 32 字节随机密钥，存储在 `config.yaml` 的 `encryption_key` 字段 |
 | 配置文件权限 | 首次启动时设置 `config.yaml` 权限为 `0600` |
 | WebSocket 输入校验 | `resize` 限制范围：cols 1-500，rows 1-200，超出则拒绝 |
 
@@ -99,6 +99,8 @@
 - 使用标准 `log/slog` 输出结构化日志
 - 记录：登录成功/失败、TOTP 验证结果、SSH 连接建立/断开、错误信息
 - 不记录：密码、TOTP 码、终端内容
+- 输出：默认 stdout，可配置文件路径
+- 日志轮转：单文件最大 10MB，保留 5 个历史文件
 
 ### 配置文件示例 (`config.yaml`)
 
@@ -111,7 +113,9 @@ server:
 auth:
   username: "admin"
   password_hash: "$2a$10$..."  # 首次启动自动生成
-  totp_secret: ""                 # 首次启动自动生成
+  totp_secret: ""                 # 首次启动自动生成，文件权限 0600 保护
+
+encryption_key: ""                # AES-GCM DEK，首次启动自动生成
 
 default_host:
   host: "192.168.1.100"
@@ -200,7 +204,7 @@ ssh-web/
 | 密码错误 | 统一提示"用户名或密码错误"，不区分具体原因 |
 | SSH 主机密钥变更 | 终端显示警告，拒绝连接，需手动确认 |
 | 目标主机不可达 | 显示连接超时信息，提供"重连"按钮 |
-| 服务重启 | Session 保留，但 SSH 连接断开，用户需刷新页面重连 |
+| 服务重启 | Session 保留，SSH 连接断开；用户打开终端页时自动重新建立 SSH 连接 |
 | xterm.js 加载失败 | 显示降级提示，建议刷新页面 |
 
 ## 优雅关闭
