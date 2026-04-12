@@ -68,10 +68,37 @@
 |------|------|
 | 密码存储 | bcrypt 哈希，不存明文 |
 | TOTP Secret | 首次启动时生成，显示二维码供用户绑定 |
-| Session | HttpOnly + Secure Cookie，30 分钟过期 |
-| WebSocket 认证 | 通过 Cookie 验证 Session，拒绝未认证连接 |
-| 暴力破解防护 | 登录失败 5 次锁定 15 分钟 |
-| HTTPS | 支持配置 TLS 证书（可选） |
+| Session | HttpOnly + Secure + SameSite=Lax Cookie，30 分钟过期，验证通过后重新生成 Session ID |
+| WebSocket 认证 | 通过 Cookie 验证 Session，拒绝未认证连接；WebSocket 握手时校验 CSRF Token |
+| 暴力破解防护 | 登录失败 5 次锁定 15 分钟；TOTP 验证失败 5 次锁定 15 分钟 |
+| HTTPS | 支持配置 TLS 证书（可选），首次 TOTP 设置仅允许 localhost 访问 |
+| SSH 密码加密 | `default_host.password` 使用 AES-GCM 加密存储，密钥从 `password_hash` 派生 |
+| 配置文件权限 | 首次启动时设置 `config.yaml` 权限为 `0600` |
+| WebSocket 输入校验 | `resize` 限制范围：cols 1-500，rows 1-200，超出则拒绝 |
+
+### SSH 主机密钥策略
+
+- 首次连接时提示用户确认主机指纹（类似 `ssh` 命令的 `known_hosts` 行为）
+- 主机指纹存储在 `~/.ssh_web/known_hosts` 文件中
+- 指纹变更时警告用户可能的 MITM 攻击
+
+### 多标签行为
+
+- 同一用户允许同时打开多个终端标签页
+- 每个标签页创建独立的 SSH 会话
+- 最多支持 10 个并发终端会话
+
+### 配置热重载
+
+- 不重启服务的情况下不支持配置热重载
+- 修改配置后需重启服务生效
+- 重启时优雅关闭现有 SSH 会话和 WebSocket 连接
+
+### 日志策略
+
+- 使用标准 `log/slog` 输出结构化日志
+- 记录：登录成功/失败、TOTP 验证结果、SSH 连接建立/断开、错误信息
+- 不记录：密码、TOTP 码、终端内容
 
 ### 配置文件示例 (`config.yaml`)
 
@@ -90,8 +117,10 @@ default_host:
   host: "192.168.1.100"
   port: 22
   username: "root"
-  password: ""        # SSH 密码认证
-  private_key: ""     # 或 SSH 私钥路径
+  auth_method: "password"         # "password" 或 "private_key"
+  password_encrypted: ""          # AES-GCM 加密后的密码
+  private_key_path: ""            # SSH 私钥文件路径
+  host_key_check: true            # 是否验证主机密钥
 ```
 
 ## 终端通信与 SSH 代理
@@ -169,6 +198,18 @@ ssh-web/
 | TOTP 验证失败 | 显示错误，允许重试 |
 | 配置缺失 | 首次启动自动生成默认配置 |
 | 密码错误 | 统一提示"用户名或密码错误"，不区分具体原因 |
+| SSH 主机密钥变更 | 终端显示警告，拒绝连接，需手动确认 |
+| 目标主机不可达 | 显示连接超时信息，提供"重连"按钮 |
+| 服务重启 | Session 保留，但 SSH 连接断开，用户需刷新页面重连 |
+| xterm.js 加载失败 | 显示降级提示，建议刷新页面 |
+
+## 优雅关闭
+
+1. 收到 SIGINT/SIGTERM 信号
+2. 停止接受新连接
+3. 等待现有 WebSocket 连接关闭（最多 10 秒）
+4. 关闭所有 SSH 会话
+5. 退出进程
 
 ## 依赖
 
@@ -181,5 +222,6 @@ ssh-web/
 
 ### 前端依赖
 
-- `xterm.js` - 终端模拟器（通过 CDN 或内嵌）
-- `qrcode.js` - TOTP 二维码显示（首次设置时）
+- `xterm.js` - 终端模拟器（必须内嵌到二进制，不使用 CDN）
+- `xterm-addon-fit` - 自适应终端大小
+- `qrcode.js` - TOTP 二维码显示（首次设置时，内嵌）
