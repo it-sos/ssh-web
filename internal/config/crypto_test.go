@@ -1,11 +1,12 @@
 package config
 
 import (
+	"encoding/base64"
 	"testing"
 )
 
 func TestEncryptDecrypt(t *testing.T) {
-	key := generateRandomString(32)
+	key := base64.StdEncoding.EncodeToString([]byte(generateRandomString(32)))
 	plaintext := "mysecretpassword"
 
 	encrypted, err := Encrypt(key, plaintext)
@@ -26,8 +27,8 @@ func TestEncryptDecrypt(t *testing.T) {
 }
 
 func TestDecrypt_WrongKey(t *testing.T) {
-	key1 := generateRandomString(32)
-	key2 := generateRandomString(32)
+	key1 := base64.StdEncoding.EncodeToString([]byte(generateRandomString(32)))
+	key2 := base64.StdEncoding.EncodeToString([]byte(generateRandomString(32)))
 	plaintext := "mysecretpassword"
 
 	encrypted, err := Encrypt(key1, plaintext)
