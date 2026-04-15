@@ -108,6 +108,11 @@ func main() {
 		}
 
 		slog.Info("Login successful", "user", req.Username)
+
+		token := sessionStore.CreateSession(req.Username)
+		secure := cfg.Server.TLSCert != ""
+		sessionStore.SetCookie(w, r, token, secure)
+
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})

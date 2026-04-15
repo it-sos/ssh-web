@@ -79,6 +79,12 @@ func checkHostKey(hostname string, remote net.Addr, key ssh.PublicKey) error {
 		return err
 	}
 
+	if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
+		if f, err := os.OpenFile(knownHostsPath, os.O_CREATE, 0600); err == nil {
+			f.Close()
+		}
+	}
+
 	hostKeyCallback, err := knownhosts.New(knownHostsPath)
 	if err != nil {
 		return err

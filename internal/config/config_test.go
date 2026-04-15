@@ -1,8 +1,10 @@
 package config
 
 import (
+	"encoding/base32"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 )
 
@@ -66,5 +68,27 @@ default_host:
 	}
 	if cfg.DefaultHost.Host != "10.0.0.1" {
 		t.Errorf("expected host '10.0.0.1', got %q", cfg.DefaultHost.Host)
+	}
+}
+
+func TestTOTPSecret_IsValidBase32(t *testing.T) {
+	dir := t.TempDir()
+	cfg, err := LoadConfig(filepath.Join(dir, "config.yaml"))
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+
+	secret := cfg.Auth.TOTPSecret
+
+	// Must match Base32 alphabet: A-Z and 2-7 only
+	validBase32 := regexp.MustCompile(`^[A-Z2-7]+$`)
+	if !validBase32.MatchString(secret) {
+		t.Errorf("TOTPSecret %q contains non-Base32 characters", secret)
+	}
+
+	// Must be decodable as Base32
+	_, err = base32.StdEncoding.DecodeString(secret)
+	if err != nil {
+		t.Errorf("TOTPSecret %q is not valid Base32: %v", secret, err)
 	}
 }

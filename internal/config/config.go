@@ -2,9 +2,11 @@ package config
 
 import (
 	"crypto/rand"
+	"encoding/base32"
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
@@ -61,7 +63,7 @@ func LoadConfig(path string) (*Config, error) {
 
 func defaultConfig() Config {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("changeme"), bcrypt.DefaultCost)
-	totpSecret := generateRandomString(20)
+	totpSecret := generateBase32Secret(20)
 	encKey := generateRandomString(32)
 
 	return Config{
@@ -96,7 +98,7 @@ func setDefaults(cfg *Config) {
 		cfg.Auth.PasswordHash = string(hash)
 	}
 	if cfg.Auth.TOTPSecret == "" {
-		cfg.Auth.TOTPSecret = generateRandomString(20)
+		cfg.Auth.TOTPSecret = generateBase32Secret(20)
 	}
 	if cfg.EncryptionKey == "" {
 		cfg.EncryptionKey = base64.StdEncoding.EncodeToString([]byte(generateRandomString(32)))
@@ -127,4 +129,14 @@ func generateRandomString(n int) string {
 		panic(err)
 	}
 	return base64.RawURLEncoding.EncodeToString(b)[:n]
+}
+
+func generateBase32Secret(n int) string {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	// Base32 encoding produces uppercase letters A-Z and digits 2-7,
+	// which is the valid character set for TOTP secrets (RFC 4648).
+	return strings.TrimRight(base32.StdEncoding.EncodeToString(b), "=")
 }

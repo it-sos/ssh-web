@@ -83,12 +83,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := sshSession.Shell(); err != nil {
-		slog.Error("Shell start failed", "error", err)
-		sendError(conn, "Shell start failed")
-		return
-	}
-
 	stdin, err := sshSession.StdinPipe()
 	if err != nil {
 		slog.Error("Stdin pipe failed", "error", err)
@@ -99,6 +93,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stdout, err := sshSession.StdoutPipe()
 	if err != nil {
 		slog.Error("Stdout pipe failed", "error", err)
+		return
+	}
+
+	if err := sshSession.Shell(); err != nil {
+		slog.Error("Shell start failed", "error", err)
+		sendError(conn, "Shell start failed")
 		return
 	}
 
