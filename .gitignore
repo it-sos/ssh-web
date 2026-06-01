@@ -1,3 +1,6 @@
-ssh-web
 config.yaml
 .config.yaml.*
+graphify-out/
+.graphify_ast.json
+claude-debug.log
+ssh-web
