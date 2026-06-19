@@ -48,29 +48,18 @@ To test:
 
 ## Configuration
 
-[`config.yaml`](config.yaml) contains:
-
-- `server.port` - HTTP server port (default: 8080)
-- `server.tls_cert` / `server.tls_key` - Optional TLS certificates
-- `server.base_path` - URL path prefix (default: "", e.g. "/ssh-web" makes all routes under /ssh-web/)
-- `auth.username` - Login username (default: admin)
-- `auth.password_hash` - bcrypt hash of login password
-- `auth.totp_secret` - Base32 secret for TOTP 2FA
-- `default_host.*` - Target SSH server settings
+See [CONFIG.md](CONFIG.md) for full `config.yaml` reference and [ENV.md](ENV.md) for environment variable overrides.
 
 ### Password Encryption
 
 Passwords are encrypted with a key stored in `encryption_key`:
 
 ```go
-// Encrypt
 encrypted := Encrypt(key, password)
-
-// Decrypt
 password, _ := config.Decrypt(key, encrypted)
 ```
 
-This prevents passwords from appearing in logs.
+This prevents passwords from appearing in logs. Use `./ssh-web encrypt-password <password>` to generate an encrypted value.
 
 ### Session Management
 
