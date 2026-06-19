@@ -52,6 +52,7 @@ To test:
 
 - `server.port` - HTTP server port (default: 8080)
 - `server.tls_cert` / `server.tls_key` - Optional TLS certificates
+- `server.base_path` - URL path prefix (default: "", e.g. "/ssh-web" makes all routes under /ssh-web/)
 - `auth.username` - Login username (default: admin)
 - `auth.password_hash` - bcrypt hash of login password
 - `auth.totp_secret` - Base32 secret for TOTP 2FA

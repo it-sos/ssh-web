@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -58,28 +59,44 @@ func main() {
 		slog.Info("Default password", "password", "changeme")
 	}
 
+	basePath := strings.TrimRight(cfg.Server.BasePath, "/")
+
 	mux := http.NewServeMux()
 
 	staticFS, _ := fs.Sub(web.StaticFiles, ".")
-	mux.Handle("/css/", http.FileServer(http.FS(staticFS)))
-	mux.Handle("/js/", http.FileServer(http.FS(staticFS)))
-	mux.Handle("/vendor/", http.FileServer(http.FS(staticFS)))
+	if basePath != "" {
+		mux.Handle(basePath+"/css/", http.StripPrefix(basePath, http.FileServer(http.FS(staticFS))))
+		mux.Handle(basePath+"/js/", http.StripPrefix(basePath, http.FileServer(http.FS(staticFS))))
+		mux.Handle(basePath+"/vendor/", http.StripPrefix(basePath, http.FileServer(http.FS(staticFS))))
+	} else {
+		mux.Handle("/css/", http.FileServer(http.FS(staticFS)))
+		mux.Handle("/js/", http.FileServer(http.FS(staticFS)))
+		mux.Handle("/vendor/", http.FileServer(http.FS(staticFS)))
+	}
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
+	servePage := func(page string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			data, err := fs.ReadFile(web.StaticFiles, page)
+			if err != nil {
+				http.Error(w, "Not found", http.StatusNotFound)
+				return
+			}
+			content := strings.ReplaceAll(string(data), "__BASE_PATH__", basePath)
+			w.Write([]byte(content))
+		}
+	}
+
+	mux.HandleFunc(basePath+"/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != basePath+"/" {
 			http.NotFound(w, r)
 			return
 		}
-		http.ServeFileFS(w, r, web.StaticFiles, "index.html")
+		servePage("index.html")(w, r)
 	})
-	mux.HandleFunc("/totp", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFileFS(w, r, web.StaticFiles, "totp.html")
-	})
-	mux.HandleFunc("/terminal", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFileFS(w, r, web.StaticFiles, "terminal.html")
-	})
+	mux.HandleFunc(basePath+"/totp", servePage("totp.html"))
+	mux.HandleFunc(basePath+"/terminal", servePage("terminal.html"))
 
-	mux.HandleFunc("/api/login", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(basePath+"/api/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -117,7 +134,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	mux.HandleFunc("/api/totp", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(basePath+"/api/totp", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -163,7 +180,7 @@ func main() {
 	})
 
 	wsHandler := ws.NewHandler(sessionStore, sshCfg)
-	mux.HandleFunc("/ws", wsHandler.ServeHTTP)
+	mux.HandleFunc(basePath+"/ws", wsHandler.ServeHTTP)
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	server := &http.Server{

@@ -7,7 +7,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     const password = document.getElementById('password').value;
 
     try {
-        const res = await fetch('/api/login', {
+        const res = await fetch(window.BASE_PATH + '/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -21,7 +21,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             return;
         }
 
-        window.location.href = '/totp';
+        window.location.href = window.BASE_PATH + '/totp';
     } catch (err) {
         errorMsg.textContent = 'Network error';
         errorMsg.classList.remove('hidden');

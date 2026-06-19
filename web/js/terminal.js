@@ -19,7 +19,7 @@ const MAX_RECONNECT = 3;
 
 function connect() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(`${protocol}//${location.host}/ws`);
+    ws = new WebSocket(`${protocol}//${location.host}${window.BASE_PATH}/ws`);
 
     ws.onopen = () => {
         reconnectAttempts = 0;

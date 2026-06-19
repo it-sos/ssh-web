@@ -6,7 +6,7 @@ document.getElementById('totp-form').addEventListener('submit', async (e) => {
     const code = document.getElementById('totp-code').value;
 
     try {
-        const res = await fetch('/api/totp', {
+        const res = await fetch(window.BASE_PATH + '/api/totp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code })
@@ -20,7 +20,7 @@ document.getElementById('totp-form').addEventListener('submit', async (e) => {
             return;
         }
 
-        window.location.href = '/terminal';
+        window.location.href = window.BASE_PATH + '/terminal';
     } catch (err) {
         errorMsg.textContent = 'Network error';
         errorMsg.classList.remove('hidden');

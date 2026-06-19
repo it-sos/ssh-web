@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -20,9 +21,10 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port    int    `yaml:"port"`
-	TLSCert string `yaml:"tls_cert"`
-	TLSKey  string `yaml:"tls_key"`
+	Port     int    `yaml:"port"`
+	TLSCert  string `yaml:"tls_cert"`
+	TLSKey   string `yaml:"tls_key"`
+	BasePath string `yaml:"base_path"`
 }
 
 type AuthConfig struct {
@@ -68,48 +70,89 @@ func defaultConfig() Config {
 
 	return Config{
 		Server: ServerConfig{
-			Port: 8080,
+			Port:     envOrInt("SSH_WEB_SERVER_PORT", 8080),
+			TLSCert:  os.Getenv("SSH_WEB_SERVER_TLS_CERT"),
+			TLSKey:   os.Getenv("SSH_WEB_SERVER_TLS_KEY"),
+			BasePath: os.Getenv("SSH_WEB_SERVER_BASE_PATH"),
 		},
 		Auth: AuthConfig{
-			Username:     "admin",
-			PasswordHash: string(hash),
-			TOTPSecret:   totpSecret,
+			Username:     envOrString("SSH_WEB_AUTH_USERNAME", "admin"),
+			PasswordHash: envOrString("SSH_WEB_AUTH_PASSWORD_HASH", string(hash)),
+			TOTPSecret:   envOrString("SSH_WEB_AUTH_TOTP_SECRET", totpSecret),
 		},
-		EncryptionKey: base64.StdEncoding.EncodeToString([]byte(encKey)),
+		EncryptionKey: envOrString("SSH_WEB_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString([]byte(encKey))),
 		DefaultHost: DefaultHostConfig{
-			Host:         "127.0.0.1",
-			Port:         22,
-			Username:     "root",
-			AuthMethod:   "password",
-			HostKeyCheck: true,
+			Host:              envOrString("SSH_WEB_DEFAULT_HOST_HOST", "127.0.0.1"),
+			Port:              envOrInt("SSH_WEB_DEFAULT_HOST_PORT", 22),
+			Username:          envOrString("SSH_WEB_DEFAULT_HOST_USERNAME", "root"),
+			AuthMethod:        envOrString("SSH_WEB_DEFAULT_HOST_AUTH_METHOD", "password"),
+			PasswordEncrypted: os.Getenv("SSH_WEB_DEFAULT_HOST_PASSWORD_ENCRYPTED"),
+			PrivateKeyPath:    os.Getenv("SSH_WEB_DEFAULT_HOST_PRIVATE_KEY_PATH"),
+			HostKeyCheck:      envOrBool("SSH_WEB_DEFAULT_HOST_HOST_KEY_CHECK", true),
 		},
 	}
 }
 
 func setDefaults(cfg *Config) {
 	if cfg.Server.Port == 0 {
-		cfg.Server.Port = 8080
+		cfg.Server.Port = envOrInt("SSH_WEB_SERVER_PORT", 8080)
+	}
+	if cfg.Server.TLSCert == "" {
+		cfg.Server.TLSCert = os.Getenv("SSH_WEB_SERVER_TLS_CERT")
+	}
+	if cfg.Server.TLSKey == "" {
+		cfg.Server.TLSKey = os.Getenv("SSH_WEB_SERVER_TLS_KEY")
+	}
+	if cfg.Server.BasePath == "" {
+		cfg.Server.BasePath = os.Getenv("SSH_WEB_SERVER_BASE_PATH")
 	}
 	if cfg.Auth.Username == "" {
-		cfg.Auth.Username = "admin"
+		cfg.Auth.Username = envOrString("SSH_WEB_AUTH_USERNAME", "admin")
 	}
 	if cfg.Auth.PasswordHash == "" {
-		hash, _ := bcrypt.GenerateFromPassword([]byte("changeme"), bcrypt.DefaultCost)
-		cfg.Auth.PasswordHash = string(hash)
+		v := os.Getenv("SSH_WEB_AUTH_PASSWORD_HASH")
+		if v != "" {
+			cfg.Auth.PasswordHash = v
+		} else {
+			hash, _ := bcrypt.GenerateFromPassword([]byte("changeme"), bcrypt.DefaultCost)
+			cfg.Auth.PasswordHash = string(hash)
+		}
 	}
 	if cfg.Auth.TOTPSecret == "" {
-		cfg.Auth.TOTPSecret = generateBase32Secret(20)
+		v := os.Getenv("SSH_WEB_AUTH_TOTP_SECRET")
+		if v != "" {
+			cfg.Auth.TOTPSecret = v
+		} else {
+			cfg.Auth.TOTPSecret = generateBase32Secret(20)
+		}
 	}
 	if cfg.EncryptionKey == "" {
-		cfg.EncryptionKey = base64.StdEncoding.EncodeToString([]byte(generateRandomString(32)))
+		v := os.Getenv("SSH_WEB_ENCRYPTION_KEY")
+		if v != "" {
+			cfg.EncryptionKey = v
+		} else {
+			cfg.EncryptionKey = base64.StdEncoding.EncodeToString([]byte(generateRandomString(32)))
+		}
+	}
+	if cfg.DefaultHost.Host == "" {
+		cfg.DefaultHost.Host = envOrString("SSH_WEB_DEFAULT_HOST_HOST", "127.0.0.1")
 	}
 	if cfg.DefaultHost.Port == 0 {
-		cfg.DefaultHost.Port = 22
+		cfg.DefaultHost.Port = envOrInt("SSH_WEB_DEFAULT_HOST_PORT", 22)
+	}
+	if cfg.DefaultHost.Username == "" {
+		cfg.DefaultHost.Username = envOrString("SSH_WEB_DEFAULT_HOST_USERNAME", "root")
 	}
 	if cfg.DefaultHost.AuthMethod == "" {
-		cfg.DefaultHost.AuthMethod = "password"
+		cfg.DefaultHost.AuthMethod = envOrString("SSH_WEB_DEFAULT_HOST_AUTH_METHOD", "password")
 	}
-	cfg.DefaultHost.HostKeyCheck = true
+	if cfg.DefaultHost.PasswordEncrypted == "" {
+		cfg.DefaultHost.PasswordEncrypted = os.Getenv("SSH_WEB_DEFAULT_HOST_PASSWORD_ENCRYPTED")
+	}
+	if cfg.DefaultHost.PrivateKeyPath == "" {
+		cfg.DefaultHost.PrivateKeyPath = os.Getenv("SSH_WEB_DEFAULT_HOST_PRIVATE_KEY_PATH")
+	}
+	cfg.DefaultHost.HostKeyCheck = envOrBool("SSH_WEB_DEFAULT_HOST_HOST_KEY_CHECK", true)
 }
 
 func saveConfig(path string, cfg *Config) error {
@@ -121,6 +164,31 @@ func saveConfig(path string, cfg *Config) error {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil
+}
+
+func envOrString(key, defaultVal string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultVal
+}
+
+func envOrInt(key string, defaultVal int) int {
+	if v := os.Getenv(key); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			return i
+		}
+	}
+	return defaultVal
+}
+
+func envOrBool(key string, defaultVal bool) bool {
+	if v := os.Getenv(key); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			return b
+		}
+	}
+	return defaultVal
 }
 
 func generateRandomString(n int) string {

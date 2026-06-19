@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SSH Web Terminal</title>
-    <link rel="stylesheet" href="/vendor/xterm.css">
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="__BASE_PATH__/vendor/xterm.css">
+    <link rel="stylesheet" href="__BASE_PATH__/css/style.css">
+    <script>window.BASE_PATH="__BASE_PATH__";</script>
 </head>
 <body>
     <div class="terminal-container">
@@ -17,8 +18,8 @@
             <button id="reconnect-btn">Reconnect</button>
         </div>
     </div>
-    <script src="/vendor/xterm.js"></script>
-    <script src="/vendor/xterm-addon-fit.js"></script>
-    <script src="/js/terminal.js"></script>
+    <script src="__BASE_PATH__/vendor/xterm.js"></script>
+    <script src="__BASE_PATH__/vendor/xterm-addon-fit.js"></script>
+    <script src="__BASE_PATH__/js/terminal.js"></script>
 </body>
 </html>
