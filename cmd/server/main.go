@@ -91,9 +91,19 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
+		if !*cfg.Auth.AuthEnabled {
+			http.Redirect(w, r, basePath+"/terminal", http.StatusFound)
+			return
+		}
 		servePage("index.html")(w, r)
 	})
-	mux.HandleFunc(basePath+"/totp", servePage("totp.html"))
+	mux.HandleFunc(basePath+"/totp", func(w http.ResponseWriter, r *http.Request) {
+		if !*cfg.Auth.AuthEnabled {
+			http.Redirect(w, r, basePath+"/terminal", http.StatusFound)
+			return
+		}
+		servePage("totp.html")(w, r)
+	})
 	mux.HandleFunc(basePath+"/terminal", servePage("terminal.html"))
 
 	mux.HandleFunc(basePath+"/api/login", func(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +189,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	wsHandler := ws.NewHandler(sessionStore, sshCfg)
+	wsHandler := ws.NewHandler(sessionStore, sshCfg, *cfg.Auth.AuthEnabled)
 	mux.HandleFunc(basePath+"/ws", wsHandler.ServeHTTP)
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

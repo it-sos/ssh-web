@@ -31,6 +31,7 @@ type AuthConfig struct {
 	Username     string `yaml:"username"`
 	PasswordHash string `yaml:"password_hash"`
 	TOTPSecret   string `yaml:"totp_secret"`
+	AuthEnabled  *bool  `yaml:"auth_enabled"`
 }
 
 type DefaultHostConfig struct {
@@ -67,6 +68,7 @@ func defaultConfig() Config {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("changeme"), bcrypt.DefaultCost)
 	totpSecret := generateBase32Secret(20)
 	encKey := generateRandomString(32)
+	authEnabled := envOrBool("SSH_WEB_AUTH_ENABLED", true)
 
 	return Config{
 		Server: ServerConfig{
@@ -79,6 +81,7 @@ func defaultConfig() Config {
 			Username:     envOrString("SSH_WEB_AUTH_USERNAME", "admin"),
 			PasswordHash: envOrString("SSH_WEB_AUTH_PASSWORD_HASH", string(hash)),
 			TOTPSecret:   envOrString("SSH_WEB_AUTH_TOTP_SECRET", totpSecret),
+			AuthEnabled:  &authEnabled,
 		},
 		EncryptionKey: envOrString("SSH_WEB_ENCRYPTION_KEY", base64.StdEncoding.EncodeToString([]byte(encKey))),
 		DefaultHost: DefaultHostConfig{
@@ -124,6 +127,15 @@ func setDefaults(cfg *Config) {
 			cfg.Auth.TOTPSecret = v
 		} else {
 			cfg.Auth.TOTPSecret = generateBase32Secret(20)
+		}
+	}
+	if cfg.Auth.AuthEnabled == nil {
+		v := true
+		cfg.Auth.AuthEnabled = &v
+	}
+	if v := os.Getenv("SSH_WEB_AUTH_ENABLED"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.Auth.AuthEnabled = &b
 		}
 	}
 	if cfg.EncryptionKey == "" {

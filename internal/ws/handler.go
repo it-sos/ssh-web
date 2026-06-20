@@ -29,21 +29,25 @@ type Handler struct {
 	mu             sync.Mutex
 	activeSessions int
 	maxSessions    int
+	authEnabled    bool
 }
 
-func NewHandler(store *auth.SessionStore, sshCfg *ssh.ClientConfig) *Handler {
+func NewHandler(store *auth.SessionStore, sshCfg *ssh.ClientConfig, authEnabled bool) *Handler {
 	return &Handler{
 		sessionStore: store,
 		sshConfig:    sshCfg,
 		maxSessions:  10,
+		authEnabled:  authEnabled,
 	}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	token := h.sessionStore.GetSessionToken(r)
-	if _, ok := h.sessionStore.ValidateSession(token); !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
+	if h.authEnabled {
+		token := h.sessionStore.GetSessionToken(r)
+		if _, ok := h.sessionStore.ValidateSession(token); !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	h.mu.Lock()
