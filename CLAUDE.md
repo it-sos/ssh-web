@@ -48,7 +48,7 @@ To test:
 
 ## Configuration
 
-See [CONFIG.md](CONFIG.md) for full `config.yaml` reference and [ENV.md](ENV.md) for environment variable overrides.
+See [docs/config.md](docs/config.md) for full `config.yaml` reference and [docs/env.md](docs/env.md) for environment variable overrides.
 
 ### Password Encryption
 

@@ -20,6 +20,7 @@ ssh-web supports configuring all settings via environment variables. Environment
 | `SSH_WEB_AUTH_USERNAME` | `auth.username` | `admin` | Login username |
 | `SSH_WEB_AUTH_PASSWORD_HASH` | `auth.password_hash` | (auto-generated) | bcrypt hash of the login password |
 | `SSH_WEB_AUTH_TOTP_SECRET` | `auth.totp_secret` | (auto-generated) | Base32 TOTP secret for 2FA |
+| `SSH_WEB_AUTH_ENABLED` | `auth.auth_enabled` | `true` | Enable/disable web UI authentication (`true` or `false`) |
 
 ### Encryption Settings
 
